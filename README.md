@@ -4,3 +4,5 @@ The repo for minipaint, beta currently.
 Releasing the first version on 29th auguest, 12pm BST
 
 Current version: BETA 0.71, Next release in a few hours.
+
+Note: i will rewrite this to C and compile it to be ALOT smaller probably 30th august
