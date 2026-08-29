@@ -20,11 +20,9 @@ except ImportError:
 
 
 class MiniPaint:
-    # Canvas size
     CANVAS_W = 900
     CANVAS_H = 600
 
-    # Default palette (Windows Paint style)
     PALETTE = [
         "#000000", "#7F7F7F", "#880015", "#ED1C24", "#FF7F27", "#FFF200",
         "#22B14C", "#00A2E8", "#3F48CC", "#A349A4", "#FFFFFF", "#C3C3C3",
@@ -38,21 +36,19 @@ class MiniPaint:
         self.root.geometry(f"{self.CANVAS_W + 180}x{self.CANVAS_H + 80}")
         self.root.minsize(800, 500)
 
-        # State
         self.tool = "pencil"
         self.color = "#000000"
-        self.fill_color = ""        # empty = no fill
+        self.fill_color = ""
         self.size = 3
         self.start_x = self.start_y = None
         self.last_x = self.last_y = None
-        self.snapshot = None        # for shape preview
+        self.snapshot = None
         self.undo_stack = []
 
         self._build_ui()
 
-    # ---------------- UI ----------------
+    # ui
     def _build_ui(self):
-        # ---- Top toolbar ----
         top = tk.Frame(self.root, relief=tk.RIDGE, bd=1)
         top.pack(side=tk.TOP, fill=tk.X)
 
@@ -68,7 +64,6 @@ class MiniPaint:
         sep = ttk.Separator(top, orient=tk.VERTICAL)
         sep.pack(side=tk.LEFT, padx=6, fill=tk.Y)
 
-        # Brush size
         tk.Label(top, text="Size:").pack(side=tk.LEFT, padx=(4, 0))
         self.size_var = tk.IntVar(value=self.size)
         size_slider = ttk.Scale(top, from_=1, to=40, variable=self.size_var,
@@ -81,24 +76,20 @@ class MiniPaint:
         sep2 = ttk.Separator(top, orient=tk.VERTICAL)
         sep2.pack(side=tk.LEFT, padx=6, fill=tk.Y)
 
-        # Action buttons
         tk.Button(top, text="↩ Undo", command=self.undo).pack(side=tk.LEFT, padx=2)
         tk.Button(top, text="🗑 Clear", command=self.clear).pack(side=tk.LEFT, padx=2)
         tk.Button(top, text="💾 Save", command=self.save).pack(side=tk.LEFT, padx=2)
         tk.Button(top, text="📂 Open", command=self.open_file).pack(side=tk.LEFT, padx=2)
 
-        # ---- Middle: palette + canvas ----
         body = tk.Frame(self.root)
         body.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        # Left palette panel
         side = tk.Frame(body, relief=tk.RIDGE, bd=1, width=160)
         side.pack(side=tk.LEFT, fill=tk.Y)
         side.pack_propagate(False)
 
         tk.Label(side, text="Colors", font=("Segoe UI", 10, "bold")).pack(pady=(6, 2))
 
-        # Current color swatches (foreground + background/fill)
         swatch_row = tk.Frame(side)
         swatch_row.pack(pady=4)
         self.fg_btn = tk.Button(swatch_row, bg=self.color, width=4, height=2,
@@ -110,7 +101,6 @@ class MiniPaint:
                                   command=self._toggle_fill)
         fill_chk.pack(anchor=tk.W, padx=8)
 
-        # Palette grid
         pal = tk.Frame(side)
         pal.pack(padx=8, pady=6)
         for i, c in enumerate(self.PALETTE):
@@ -119,7 +109,6 @@ class MiniPaint:
                           command=lambda col=c: self.set_color(col))
             b.grid(row=i // 10, column=i % 10, padx=1, pady=1, sticky="nsew")
 
-        # ---- Canvas ----
         canvas_frame = tk.Frame(body, relief=tk.SUNKEN, bd=2)
         canvas_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4, pady=4)
 
@@ -128,14 +117,11 @@ class MiniPaint:
                                 cursor="crosshair", highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
-        # Bind events
         self.canvas.bind("<Button-1>", self.on_press)
         self.canvas.bind("<B1-Motion>", self.on_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
-        # Smooth drawing for pencil/eraser
         self.canvas.bind("<Motion>", self.on_motion_smooth)
 
-        # Status bar
         self.status = tk.StringVar(value="Ready — pick a tool and start drawing.")
         bar = tk.Label(self.root, textvariable=self.status,
                        relief=tk.SUNKEN, anchor=tk.W, bd=1)
@@ -147,14 +133,12 @@ class MiniPaint:
         btn = tk.Button(parent, text=label, relief=tk.RAISED,
                         command=lambda: self.set_tool(name))
         btn.pack(side=tk.LEFT, padx=2, pady=4)
-        # store reference for active-state styling
         if not hasattr(self, "_tool_btns"):
             self._tool_btns = {}
         self._tool_btns[name] = btn
         if name == self.tool:
             btn.config(relief=tk.SUNKEN)
 
-    # ---------------- Tool / color ----------------
     def set_tool(self, name):
         self.tool = name
         for n, b in getattr(self, "_tool_btns", {}).items():
@@ -180,7 +164,6 @@ class MiniPaint:
         else:
             self.fill_color = ""
 
-    # ---------------- Drawing ----------------
     def on_press(self, e):
         self.start_x, self.start_y = e.x, e.y
         self.last_x, self.last_y = e.x, e.y
@@ -192,7 +175,6 @@ class MiniPaint:
             self._push_undo()
 
     def on_motion_smooth(self, e):
-        # Use B1-Motion primarily; this is just a no-op hook for non-button moves
         pass
 
     def on_drag(self, e):
@@ -200,14 +182,12 @@ class MiniPaint:
             self._draw_segment(self.last_x, self.last_y, e.x, e.y)
             self.last_x, self.last_y = e.x, e.y
         elif self.tool in ("line", "rect", "ellipse", "fill_rect", "fill_ellipse"):
-            # Save snapshot on first move to enable preview
             if self.snapshot is None:
                 self.snapshot = self._grab_canvas_image()
             self._draw_shape_preview(self.start_x, self.start_y, e.x, e.y)
 
     def on_release(self, e):
         if self.tool in ("line", "rect", "ellipse", "fill_rect", "fill_ellipse"):
-            # Final commit
             self._restore_canvas_image(self.snapshot)
             self.snapshot = None
             self._draw_shape_final(self.start_x, self.start_y, e.x, e.y)
@@ -243,23 +223,18 @@ class MiniPaint:
                                     width=self.size,
                                     capstyle=tk.ROUND)
 
-    # ---- Canvas snapshot for shape preview ----
     def _grab_canvas_image(self):
-        # Store a list of all current canvas items so we can delete and redraw
         return list(self.canvas.find_all())
 
     def _restore_canvas_image(self, snapshot):
         if snapshot is None:
             return
-        # Delete items created AFTER the snapshot boundary
         current = list(self.canvas.find_all())
-        # Map ids to indices; anything beyond snapshot length gets removed
         snap_set = set(snapshot)
         for item in current:
             if item not in snap_set:
                 self.canvas.delete(item)
 
-    # ---- Flood fill ----
     def _flood_fill(self, x, y):
         """Flood fill on tkinter canvas items is approximate. We use a
         simple approach: convert the canvas to a PIL image, flood-fill
@@ -268,16 +243,13 @@ class MiniPaint:
             messagebox.showwarning("Fill",
                                    "Flood fill requires Pillow: pip install pillow")
             return
-        # Grab current canvas as image
         self.root.update()
         x0 = self.canvas.winfo_rootx()
         y0 = self.canvas.winfo_rooty()
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
         img = ImageGrab.grab(bbox=(x0, y0, x0 + w, y0 + h)).convert("RGB")
-        # Note: x, y are canvas-relative, which matches the grabbed bbox
         self._flood_fill_pil(img, x, y, self.color)
-        # Clear canvas and redraw the filled image
         self.canvas.delete("all")
         self._bg_image = ImageTk.PhotoImage(img)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self._bg_image)
@@ -302,9 +274,7 @@ class MiniPaint:
             px[cx, cy] = fill_rgb
             stack.extend([(cx+1, cy), (cx-1, cy), (cx, cy+1), (cx, cy-1)])
 
-    # ---------------- Undo / Clear ----------------
     def _push_undo(self):
-        # Snapshot current canvas item config dicts
         items = []
         for item in self.canvas.find_all():
             try:
@@ -316,7 +286,6 @@ class MiniPaint:
             except tk.TclError:
                 continue
         self.undo_stack.append(items)
-        # Cap undo history
         if len(self.undo_stack) > 30:
             self.undo_stack.pop(0)
 
@@ -324,11 +293,9 @@ class MiniPaint:
         if len(self.undo_stack) <= 1:
             self.status.set("Nothing to undo.")
             return
-        self.undo_stack.pop()  # drop current
+        self.undo_stack.pop()
         prev = self.undo_stack[-1]
         self.canvas.delete("all")
-        # Re-create items. Note: image items cannot be perfectly restored,
-        # so this works best for vector shapes & lines.
         for _old_id, itype, coords, cfg in prev:
             if itype == "line":
                 new_id = self.canvas.create_line(*coords)
@@ -337,7 +304,6 @@ class MiniPaint:
             elif itype == "rectangle":
                 new_id = self.canvas.create_rectangle(*coords)
             elif itype == "image":
-                # Skip image restoration (flood-filled state)
                 continue
             else:
                 continue
@@ -358,7 +324,6 @@ class MiniPaint:
         self._push_undo()
         self.status.set("Canvas cleared.")
 
-    # ---------------- Save / Open ----------------
     def save(self):
         if not HAS_PIL:
             messagebox.showwarning("Save",
@@ -390,7 +355,6 @@ class MiniPaint:
         if not path:
             return
         img = Image.open(path).convert("RGB")
-        # Resize to canvas if too big (keep aspect)
         cw, ch = self.canvas.winfo_width(), self.canvas.winfo_height()
         img.thumbnail((cw, ch))
         self.canvas.delete("all")
@@ -403,8 +367,9 @@ class MiniPaint:
 def main():
     root = tk.Tk()
     try:
-        # Try to set a nicer default font on Windows
-        root.option_add("*Font", "Segoe UI 9")
+        import tkinter.font as tkfont
+        default_font = tkfont.nametofont("TkDefaultFont")
+        default_font.configure(family="Segoe UI", size=9)
     except Exception:
         pass
     app = MiniPaint(root)
